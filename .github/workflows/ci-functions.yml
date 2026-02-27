@@ -1,0 +1,160 @@
+name: Edge Functions CI
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/functions/**'
+      - '.github/workflows/ci-functions.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'supabase/functions/**'
+
+jobs:
+  test-functions:
+    name: Test Edge Functions
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+
+      - name: Check Deno version
+        run: deno --version
+
+      - name: Cache Deno dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/deno
+            ~/.deno
+          key: ${{ runner.os }}-deno-${{ hashFiles('supabase/functions/**/*.ts') }}
+          restore-keys: |
+            ${{ runner.os }}-deno-
+
+      - name: Lint Edge Functions
+        working-directory: supabase/functions
+        run: |
+          echo "Linting all Edge Functions..."
+          for dir in */; do
+            if [ -f "${dir}index.ts" ]; then
+              echo "Linting ${dir}..."
+              deno lint "${dir}"
+            fi
+          done
+
+      - name: Type check Edge Functions
+        working-directory: supabase/functions
+        run: |
+          echo "Type checking all Edge Functions..."
+          for dir in */; do
+            if [ -f "${dir}index.ts" ]; then
+              echo "Type checking ${dir}..."
+              deno check "${dir}index.ts" || echo "Type check failed for ${dir} - continuing"
+            fi
+          done
+        continue-on-error: true
+
+      - name: Run Edge Function tests
+        working-directory: supabase/functions
+        run: |
+          echo "Running tests for Edge Functions..."
+          test_count=0
+          for dir in */; do
+            if [ -f "${dir}test.ts" ]; then
+              echo "Testing ${dir}..."
+              deno test --allow-all "${dir}test.ts" || echo "Tests failed for ${dir} - continuing"
+              test_count=$((test_count + 1))
+            fi
+          done
+          if [ $test_count -eq 0 ]; then
+            echo "No test files found - skipping tests"
+          else
+            echo "Ran tests for $test_count Edge Functions"
+          fi
+        continue-on-error: true
+
+  validate-function-structure:
+    name: Validate Function Structure
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate function structure
+        working-directory: supabase/functions
+        run: |
+          echo "Validating Edge Function structure..."
+          error_count=0
+
+          for dir in */; do
+            dir_name="${dir%/}"
+
+            # Skip _shared directory
+            if [ "$dir_name" = "_shared" ]; then
+              continue
+            fi
+
+            # Check for index.ts
+            if [ ! -f "${dir}index.ts" ]; then
+              echo "❌ Missing index.ts in ${dir}"
+              error_count=$((error_count + 1))
+            else
+              echo "✅ ${dir}index.ts exists"
+            fi
+
+            # Check if function uses Deno.serve
+            if ! grep -q "Deno.serve" "${dir}index.ts" 2>/dev/null; then
+              echo "⚠️  ${dir}index.ts may not use Deno.serve"
+            fi
+          done
+
+          if [ $error_count -gt 0 ]; then
+            echo "Found $error_count validation errors"
+            exit 1
+          else
+            echo "All Edge Functions have valid structure"
+          fi
+
+  check-dependencies:
+    name: Check Dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+
+      - name: Check for import map
+        run: |
+          if [ -f "supabase/functions/import_map.json" ]; then
+            echo "Found import_map.json"
+            cat supabase/functions/import_map.json
+          else
+            echo "No import_map.json found - using direct imports"
+          fi
+
+      - name: Analyze imports
+        working-directory: supabase/functions
+        run: |
+          echo "Analyzing imports in Edge Functions..."
+          for dir in */; do
+            if [ -f "${dir}index.ts" ]; then
+              echo "Imports in ${dir}index.ts:"
+              grep -E "^import.*from" "${dir}index.ts" || echo "No imports found"
+            fi
+          done

@@ -1,0 +1,204 @@
+# Routing Rules for KSU CSOS
+# These rules determine which team owns which opportunities
+# Rules are evaluated in order (priority ascending)
+# First matching rule wins
+
+rules:
+  # ============================================================================
+  # CORPORATE PARTNERSHIPS (Highest Priority)
+  # ============================================================================
+
+  - id: corporate_large_partnership
+    priority: 10
+    name: "Large Corporate Partnership"
+    when:
+      opportunity_type: corporate
+      amount_min: 100000
+    then:
+      primary_owner_role: corporate
+      secondary_owner_roles:
+        - executive
+        - marketing
+      create_task: true
+      task_type: proposal_required
+      task_priority: high
+    notes: "Partnerships $100k+ require executive visibility"
+
+  - id: corporate_medium_partnership
+    priority: 20
+    name: "Medium Corporate Partnership"
+    when:
+      opportunity_type: corporate
+      amount_min: 25000
+      amount_max: 99999
+    then:
+      primary_owner_role: corporate
+      secondary_owner_roles:
+        - marketing
+      create_task: true
+      task_type: proposal_required
+      task_priority: medium
+    notes: "Partnerships $25k-$99k standard corporate"
+
+  - id: corporate_small_partnership
+    priority: 30
+    name: "Small Corporate Partnership"
+    when:
+      opportunity_type: corporate
+      amount_max: 24999
+    then:
+      primary_owner_role: corporate
+      create_task: true
+      task_type: follow_up
+      task_priority: medium
+    notes: "Partnerships under $25k corporate-only"
+
+  # ============================================================================
+  # MAJOR GIFTS (High Priority)
+  # ============================================================================
+
+  - id: major_gift_transformational
+    priority: 40
+    name: "Transformational Gift ($1M+)"
+    when:
+      opportunity_type: major_gift
+      amount_min: 1000000
+    then:
+      primary_owner_role: major_gifts
+      secondary_owner_roles:
+        - executive
+        - marketing
+      create_task: true
+      task_type: proposal_required
+      task_priority: high
+    notes: "$1M+ gifts require executive engagement"
+
+  - id: major_gift_leadership
+    priority: 50
+    name: "Leadership Gift ($100k-$999k)"
+    when:
+      opportunity_type: major_gift
+      amount_min: 100000
+      amount_max: 999999
+    then:
+      primary_owner_role: major_gifts
+      secondary_owner_roles:
+        - executive
+      create_task: true
+      task_type: proposal_required
+      task_priority: high
+    notes: "$100k-$999k leadership level gifts"
+
+  - id: major_gift_principal
+    priority: 60
+    name: "Principal Gift ($25k-$99k)"
+    when:
+      opportunity_type: major_gift
+      amount_min: 25000
+      amount_max: 99999
+    then:
+      primary_owner_role: major_gifts
+      create_task: true
+      task_type: proposal_required
+      task_priority: medium
+    notes: "$25k-$99k principal gifts"
+
+  - id: major_gift_standard
+    priority: 70
+    name: "Major Gift ($5k-$24k)"
+    when:
+      opportunity_type: major_gift
+      amount_min: 5000
+      amount_max: 24999
+    then:
+      primary_owner_role: major_gifts
+      create_task: true
+      task_type: cultivation
+      task_priority: medium
+    notes: "$5k-$24k major gifts"
+
+  # ============================================================================
+  # TICKETING (Standard Priority)
+  # ============================================================================
+
+  - id: ticket_premium_package
+    priority: 80
+    name: "Premium Ticket Package"
+    when:
+      opportunity_type: ticket
+      amount_min: 10000
+    then:
+      primary_owner_role: ticketing
+      secondary_owner_roles:
+        - major_gifts
+      create_task: true
+      task_type: renewal
+      task_priority: high
+    notes: "Premium packages $10k+ may have major gift potential"
+
+  - id: ticket_season_package
+    priority: 90
+    name: "Season Ticket Package"
+    when:
+      opportunity_type: ticket
+      amount_min: 2500
+      amount_max: 9999
+    then:
+      primary_owner_role: ticketing
+      create_task: true
+      task_type: renewal
+      task_priority: medium
+    notes: "Standard season ticket packages"
+
+  - id: ticket_group_package
+    priority: 100
+    name: "Group/Mini Package"
+    when:
+      opportunity_type: ticket
+      amount_max: 2499
+    then:
+      primary_owner_role: ticketing
+      create_task: true
+      task_type: renewal
+      task_priority: low
+    notes: "Group and mini packages"
+
+  # ============================================================================
+  # FALLBACK / DEFAULT
+  # ============================================================================
+
+  - id: default_route
+    priority: 999
+    name: "Default Routing"
+    when: {}  # Always matches
+    then:
+      primary_owner_role: revenue_ops
+      create_task: true
+      task_type: review_required
+      task_priority: low
+    notes: "Catch-all for opportunities that don't match other rules"
+
+# ============================================================================
+# RULE EVALUATION NOTES
+# ============================================================================
+#
+# Rules are evaluated in order by priority (ascending)
+# First rule where ALL 'when' conditions match wins
+#
+# When Conditions:
+#   - opportunity_type: ticket | major_gift | corporate
+#   - amount_min: minimum opportunity amount (inclusive)
+#   - amount_max: maximum opportunity amount (inclusive)
+#   - status: active | won | lost | paused (optional, defaults to any)
+#   - constituent_is_corporate: true | false (optional)
+#   - constituent_is_donor: true | false (optional)
+#   - constituent_is_ticket_holder: true | false (optional)
+#
+# Then Actions:
+#   - primary_owner_role: Team that owns this opportunity
+#   - secondary_owner_roles: Teams that should be notified/involved
+#   - create_task: true to create a work item
+#   - task_type: renewal | proposal_required | cultivation | follow_up | review_required
+#   - task_priority: low | medium | high
+#
+# ============================================================================

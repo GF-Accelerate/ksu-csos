@@ -1,0 +1,222 @@
+# Collision Detection Rules for KSU CSOS
+# Prevents conflicting touches across revenue teams
+# Ensures coordinated constituent engagement
+
+rules:
+  # ============================================================================
+  # MAJOR GIFT PRIORITY (Highest Protection)
+  # ============================================================================
+
+  - id: major_gift_blocks_ticketing
+    priority: 10
+    name: "Major Gift Blocks Ticketing Touches"
+    when:
+      blocking_opportunity_type: major_gift
+      blocking_opportunity_status: active
+      blocked_opportunity_type: ticket
+      amount_min: 25000  # Only major gifts $25k+ create collision
+    then:
+      action: block
+      window_days: 14
+      allow_owner_override: true
+      notification_required: true
+      notification_roles:
+        - major_gifts
+        - ticketing
+        - revenue_ops
+    notes: |
+      Active major gift solicitations ($25k+) block ticket renewal calls
+      for 14 days to prevent mixed messaging. Ticketing team is notified.
+      Override requires major gifts approval.
+
+  - id: major_gift_blocks_corporate_individual
+    priority: 20
+    name: "Individual Major Gift Blocks Corporate Approach"
+    when:
+      blocking_opportunity_type: major_gift
+      blocking_opportunity_status: active
+      blocked_opportunity_type: corporate
+      constituent_is_corporate: false  # Individual donor
+      amount_min: 100000  # Only $100k+ gifts
+    then:
+      action: block
+      window_days: 30
+      allow_owner_override: true
+      notification_required: true
+      notification_roles:
+        - major_gifts
+        - corporate
+        - executive
+    notes: |
+      High-value individual major gift ($100k+) blocks corporate
+      partnership approach for 30 days. Prevents asking individual
+      donor to leverage their company while being solicited personally.
+
+  # ============================================================================
+  # CORPORATE PARTNERSHIP PRIORITY
+  # ============================================================================
+
+  - id: corporate_blocks_major_gift_company
+    priority: 30
+    name: "Corporate Deal Blocks Company Employee Solicitation"
+    when:
+      blocking_opportunity_type: corporate
+      blocking_opportunity_status: active
+      blocked_opportunity_type: major_gift
+      constituent_household_has_corporate: true  # Linked to corporate partner
+      amount_min: 50000  # Corporate deal $50k+
+    then:
+      action: warn
+      window_days: 14
+      allow_owner_override: true
+      notification_required: true
+      notification_roles:
+        - corporate
+        - major_gifts
+        - revenue_ops
+    notes: |
+      Active corporate partnership ($50k+) warns against soliciting
+      employees of that company for 14 days. WARNING only - can proceed
+      with coordination. Prevents perception of double-dipping.
+
+  - id: corporate_blocks_ticketing_company
+    priority: 40
+    name: "Corporate Deal Blocks Company Ticket Blasts"
+    when:
+      blocking_opportunity_type: corporate
+      blocking_opportunity_status: active
+      blocked_opportunity_type: ticket
+      constituent_household_has_corporate: true
+      amount_min: 25000
+    then:
+      action: block
+      window_days: 7
+      allow_owner_override: true
+      notification_required: true
+      notification_roles:
+        - corporate
+        - ticketing
+    notes: |
+      Active corporate partnership ($25k+) blocks ticket renewal blasts
+      to company employees for 7 days. Allows corporate team to offer
+      tickets as part of partnership package first.
+
+  # ============================================================================
+  # TICKETING SOFT BLOCKS
+  # ============================================================================
+
+  - id: ticket_premium_warns_major_gift
+    priority: 50
+    name: "Premium Ticket Holder Warns Major Gift Team"
+    when:
+      blocking_opportunity_type: ticket
+      blocking_opportunity_status: active
+      blocked_opportunity_type: major_gift
+      amount_min: 10000  # Premium ticket package
+    then:
+      action: warn
+      window_days: 0  # Immediate notification only
+      allow_owner_override: true
+      notification_required: true
+      notification_roles:
+        - ticketing
+        - major_gifts
+    notes: |
+      Premium ticket holders ($10k+) trigger warning to major gifts team
+      when creating major gift opportunity. No blocking, just coordination.
+      Ensures teams are aware of constituent's full engagement.
+
+  # ============================================================================
+  # CROSS-OPPORTUNITY STATUS BLOCKS
+  # ============================================================================
+
+  - id: pending_approval_blocks_new_opportunity
+    priority: 60
+    name: "Pending Proposal Blocks New Solicitation"
+    when:
+      blocking_proposal_status: pending_approval
+      blocked_opportunity_type: any
+    then:
+      action: block
+      window_days: 7
+      allow_owner_override: false  # Hard block
+      notification_required: true
+      notification_roles:
+        - executive
+        - revenue_ops
+    notes: |
+      Constituent with proposal pending approval cannot have new
+      opportunities created for 7 days. Hard block prevents multiple
+      simultaneous asks. Requires proposal resolution first.
+
+  - id: recent_loss_blocks_new_ask
+    priority: 70
+    name: "Recent Lost Opportunity Blocks Re-Ask"
+    when:
+      blocking_opportunity_status: lost
+      blocking_days_since_status_change_max: 30
+      blocked_opportunity_type: any
+      same_opportunity_type: true
+    then:
+      action: warn
+      window_days: 30
+      allow_owner_override: true
+      notification_required: true
+      notification_roles:
+        - revenue_ops
+    notes: |
+      Lost opportunity within last 30 days warns against creating
+      same opportunity type. Prevents immediate re-solicitation
+      after rejection. WARNING allows override with justification.
+
+  # ============================================================================
+  # BLENDED DEAL COORDINATION
+  # ============================================================================
+
+  - id: blended_deal_coordination
+    priority: 80
+    name: "Multiple Active Opportunities Require Coordination"
+    when:
+      constituent_active_opportunity_count_min: 2
+      blocked_opportunity_type: any
+    then:
+      action: warn
+      window_days: 0
+      allow_owner_override: true
+      notification_required: true
+      notification_roles:
+        - revenue_ops
+        - executive
+    notes: |
+      Constituent with 2+ active opportunities triggers coordination
+      warning. May indicate blended deal opportunity (ticket + gift + corp).
+      Revenue ops should coordinate strategy.
+
+# ============================================================================
+# COLLISION EVALUATION NOTES
+# ============================================================================
+#
+# Collision Detection Process:
+# 1. When new opportunity is created or updated
+# 2. Query existing opportunities for same constituent
+# 3. Evaluate collision rules in priority order
+# 4. First matching rule determines action
+#
+# Actions:
+#   - block: Prevents opportunity creation/update (user must resolve)
+#   - warn: Allows creation but sends notifications (coordination required)
+#
+# Window Days:
+#   - 0: Immediate notification only
+#   - 7-14: Short-term block (typical for same constituent)
+#   - 30+: Long-term block (after rejection or major solicitation)
+#
+# Override:
+#   - allow_owner_override: true = User can override with approval
+#   - allow_owner_override: false = Hard block (requires resolution)
+#
+# Notification:
+#   - notification_required: true sends alerts to specified roles
+#   - Alerts appear in work queue and email (if configured)
+#
+# ============================================================================

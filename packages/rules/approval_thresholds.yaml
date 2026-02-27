@@ -1,0 +1,187 @@
+# Approval Thresholds for KSU CSOS
+# Defines which proposals require approval based on amount and type
+
+thresholds:
+  # ============================================================================
+  # MAJOR GIFTS
+  # ============================================================================
+
+  - id: major_gift_transformational
+    name: "Transformational Gift ($1M+)"
+    when:
+      opportunity_type: major_gift
+      amount_min: 1000000
+    then:
+      approval_required: true
+      approver_roles:
+        - executive
+        - deputy_ad_revenue
+      approval_levels: 2  # Both must approve
+      auto_escalate_days: 3
+    notes: "$1M+ gifts require executive approval within 3 days"
+
+  - id: major_gift_leadership
+    name: "Leadership Gift ($100k-$999k)"
+    when:
+      opportunity_type: major_gift
+      amount_min: 100000
+      amount_max: 999999
+    then:
+      approval_required: true
+      approver_roles:
+        - deputy_ad_revenue
+        - executive
+      approval_levels: 1  # Either can approve
+      auto_escalate_days: 5
+    notes: "$100k-$999k gifts require deputy AD or executive approval"
+
+  - id: major_gift_principal
+    name: "Principal Gift ($25k-$99k)"
+    when:
+      opportunity_type: major_gift
+      amount_min: 25000
+      amount_max: 99999
+    then:
+      approval_required: true
+      approver_roles:
+        - deputy_ad_revenue
+        - revenue_ops
+      approval_levels: 1
+      auto_escalate_days: 7
+    notes: "$25k-$99k gifts require deputy AD or revenue ops approval"
+
+  - id: major_gift_standard
+    name: "Major Gift ($5k-$24k)"
+    when:
+      opportunity_type: major_gift
+      amount_min: 5000
+      amount_max: 24999
+    then:
+      approval_required: false
+      approver_roles: []
+      approval_levels: 0
+      auto_escalate_days: 0
+    notes: "$5k-$24k gifts do not require approval - send immediately"
+
+  # ============================================================================
+  # CORPORATE PARTNERSHIPS
+  # ============================================================================
+
+  - id: corporate_large
+    name: "Large Corporate Partnership ($100k+)"
+    when:
+      opportunity_type: corporate
+      amount_min: 100000
+    then:
+      approval_required: true
+      approver_roles:
+        - executive
+        - deputy_ad_revenue
+      approval_levels: 2  # Both must approve
+      auto_escalate_days: 3
+    notes: "$100k+ partnerships require executive approval"
+
+  - id: corporate_medium
+    name: "Medium Corporate Partnership ($25k-$99k)"
+    when:
+      opportunity_type: corporate
+      amount_min: 25000
+      amount_max: 99999
+    then:
+      approval_required: true
+      approver_roles:
+        - deputy_ad_revenue
+        - revenue_ops
+      approval_levels: 1
+      auto_escalate_days: 5
+    notes: "$25k-$99k partnerships require deputy AD or revenue ops approval"
+
+  - id: corporate_small
+    name: "Small Corporate Partnership (<$25k)"
+    when:
+      opportunity_type: corporate
+      amount_max: 24999
+    then:
+      approval_required: false
+      approver_roles: []
+      approval_levels: 0
+      auto_escalate_days: 0
+    notes: "Partnerships under $25k do not require approval"
+
+  # ============================================================================
+  # TICKETING (Generally No Approval Required)
+  # ============================================================================
+
+  - id: ticket_premium
+    name: "Premium Ticket Package ($10k+)"
+    when:
+      opportunity_type: ticket
+      amount_min: 10000
+    then:
+      approval_required: true
+      approver_roles:
+        - revenue_ops
+      approval_levels: 1
+      auto_escalate_days: 2
+    notes: "Premium packages $10k+ require quick revenue ops review"
+
+  - id: ticket_standard
+    name: "Standard Ticket Package (<$10k)"
+    when:
+      opportunity_type: ticket
+      amount_max: 9999
+    then:
+      approval_required: false
+      approver_roles: []
+      approval_levels: 0
+      auto_escalate_days: 0
+    notes: "Standard ticket packages do not require approval"
+
+  # ============================================================================
+  # FALLBACK / DEFAULT
+  # ============================================================================
+
+  - id: default_approval
+    name: "Default Approval"
+    when: {}  # Always matches
+    then:
+      approval_required: true
+      approver_roles:
+        - revenue_ops
+      approval_levels: 1
+      auto_escalate_days: 7
+    notes: "Catch-all: unknown proposals require revenue ops approval"
+
+# ============================================================================
+# APPROVAL WORKFLOW NOTES
+# ============================================================================
+#
+# Approval Levels:
+#   0: No approval required (auto-approved)
+#   1: Any one approver from approver_roles can approve
+#   2: All approvers from approver_roles must approve (multi-level)
+#
+# Auto-Escalation:
+#   If approval not received within auto_escalate_days, escalate to executive
+#
+# Approval Roles:
+#   - executive: Athletic Director or Deputy AD (executive role)
+#   - deputy_ad_revenue: Deputy AD for Revenue (executive role)
+#   - revenue_ops: Revenue Operations Manager (revenue_ops role)
+#
+# Approval Status Flow:
+#   draft → pending_approval → approved → sent
+#   draft → pending_approval → rejected → (back to draft or closed)
+#
+# When Conditions:
+#   - opportunity_type: major_gift | corporate | ticket
+#   - amount_min: minimum amount (inclusive)
+#   - amount_max: maximum amount (inclusive)
+#
+# Then Actions:
+#   - approval_required: true/false
+#   - approver_roles: list of roles that can approve
+#   - approval_levels: 0 (none), 1 (any one), 2 (all must approve)
+#   - auto_escalate_days: days until escalation
+#
+# ============================================================================
